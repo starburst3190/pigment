@@ -32,6 +32,38 @@ struct Snapshot {
     var held: Pigment?
 }
 
+struct Level {
+    let name: String
+    let rows: [String]
+    let start: Position
+    let par: Int
+
+    var board: [[Cell]] {
+        let lengths = Set(rows.map { $0.count })
+        if lengths.count > 1 {
+            assertionFailure("Level \"\(name)\" rows must all have the same length")
+        }
+        return rows.map { row in
+            row.map { character in
+                var cell = Cell()
+                switch character {
+                case "R": cell.source = .red
+                case "Y": cell.source = .yellow
+                case "B": cell.source = .blue
+                case "r": cell.target = [.red]
+                case "y": cell.target = [.yellow]
+                case "b": cell.target = [.blue]
+                case "o": cell.target = [.red, .yellow]
+                case "g": cell.target = [.yellow, .blue]
+                case "p": cell.target = [.red, .blue]
+                default: break
+                }
+                return cell
+            }
+        }
+    }
+}
+
 func pigmentColor(_ pigment: Pigment) -> Color {
     switch pigment {
     case .red: return .red
@@ -54,55 +86,38 @@ func mixedColor(for pigments: Set<Pigment>) -> Color {
     }
 }
 
-struct Level {
-    var board: [[Cell]]
-    var startPos: Position
-    var startHeld: Pigment?
-}
-
 struct ContentView: View {
-    // 起點 Position(row: 2, col: 0)
-    static let level3x3: [[Cell]] = {
-        var grid = Array(
-            repeating: Array(repeating: Cell(), count: 3),
-            count: 3
-        )
-        grid[0][0].source = .red
-        grid[0][2].source = .yellow
-        grid[2][0].target = [.red, .yellow]
-        return grid
-    }()
+    static let levels: [Level] = [
+        Level(name: "沾色", rows: ["R.o", "...", "Y.."],
+              start: Position(row: 2, col: 0), par: 9),
+        Level(name: "汙染", rows: ["R..p", "....", "....", "Yg.B"],
+              start: Position(row: 3, col: 0), par: 16),
+    ]
 
-    // 起點 Position(row: 3, col: 0)，開局 held = .yellow
-    static let level4x4: [[Cell]] = {
-        var grid = Array(
-            repeating: Array(repeating: Cell(), count: 4),
-            count: 4
-        )
-        grid[0][0].source = .red
-        grid[3][0].source = .yellow
-        grid[3][3].source = .blue
-        grid[0][3].target = [.red, .blue]
-        grid[3][1].target = [.yellow, .blue]
-        return grid
-    }()
-
-    static let currentLevel = Level(
-        board: level4x4,
-        startPos: Position(row: 3, col: 0),
-        startHeld: .yellow
-    )
-
-    @State var board: [[Cell]] = ContentView.currentLevel.board
-    @State var playerPos: Position = ContentView.currentLevel.startPos
-    @State var held: Pigment? = ContentView.currentLevel.startHeld
+    @State var levelIndex: Int = 0
+    @State var board: [[Cell]] = ContentView.levels[0].board
+    @State var playerPos: Position = ContentView.levels[0].start
+    @State var held: Pigment? = ContentView.levels[0].board[
+        ContentView.levels[0].start.row
+    ][ContentView.levels[0].start.col].source
 
     @State var gameState: GameState = .playing
     @State var history: [Snapshot] = []
     @State var moveCount: Int = 0
 
+    var currentLevel: Level {
+        ContentView.levels[levelIndex]
+    }
+
     var body: some View {
         VStack(spacing: 24) {
+            VStack(spacing: 4) {
+                Text(currentLevel.name).font(.title2).bold()
+                Text("第 \(levelIndex + 1) 關")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
             statusBanner
 
             VStack(spacing: 8) {
@@ -133,16 +148,38 @@ struct ContentView: View {
                 }
                 .disabled(history.isEmpty)
             }
+
+            HStack(spacing: 16) {
+                Button("上一關") {
+                    loadLevel(levelIndex - 1)
+                }
+                .disabled(levelIndex == 0)
+
+                Button("下一關") {
+                    loadLevel(levelIndex + 1)
+                }
+                .disabled(levelIndex == ContentView.levels.count - 1)
+            }
         }
         .padding()
     }
 
     var statusBanner: some View {
-        Group {
+        HStack {
             switch gameState {
-            case .won: Text("完成")
-            case .failed: Text("調色失敗")
-            case .playing: Text("步數：\(moveCount)")
+            case .won:
+                Text("完成")
+                if levelIndex + 1 < ContentView.levels.count {
+                    Button("下一關") {
+                        loadLevel(levelIndex + 1)
+                    }
+                } else {
+                    Text("全部完成")
+                }
+            case .failed:
+                Text("調色失敗")
+            case .playing:
+                Text("\(moveCount) 步（最佳 \(currentLevel.par)）")
             }
         }
         .font(.headline)
@@ -208,13 +245,20 @@ struct ContentView: View {
         moveCount -= 1
     }
 
-    func reset() {
-        board = ContentView.currentLevel.board
-        playerPos = ContentView.currentLevel.startPos
-        held = ContentView.currentLevel.startHeld
+    func loadLevel(_ index: Int) {
+        guard ContentView.levels.indices.contains(index) else { return }
+        let level = ContentView.levels[index]
+        levelIndex = index
+        board = level.board
+        playerPos = level.start
+        held = level.board[level.start.row][level.start.col].source
         history = []
         moveCount = 0
         gameState = .playing
+    }
+
+    func reset() {
+        loadLevel(levelIndex)
     }
 }
 
