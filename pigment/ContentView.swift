@@ -54,8 +54,15 @@ func mixedColor(for pigments: Set<Pigment>) -> Color {
     }
 }
 
+struct Level {
+    var board: [[Cell]]
+    var startPos: Position
+    var startHeld: Pigment?
+}
+
 struct ContentView: View {
-    static let initialBoard: [[Cell]] = {
+    // 起點 Position(row: 2, col: 0)
+    static let level3x3: [[Cell]] = {
         var grid = Array(
             repeating: Array(repeating: Cell(), count: 3),
             count: 3
@@ -65,12 +72,30 @@ struct ContentView: View {
         grid[2][0].target = [.red, .yellow]
         return grid
     }()
-    static let initialPlayerPos = Position(row: 0, col: 2)
-    static let initialHeld: Pigment? = .yellow
 
-    @State var board: [[Cell]] = ContentView.initialBoard
-    @State var playerPos: Position = ContentView.initialPlayerPos
-    @State var held: Pigment? = ContentView.initialHeld
+    // 起點 Position(row: 3, col: 0)，開局 held = .yellow
+    static let level4x4: [[Cell]] = {
+        var grid = Array(
+            repeating: Array(repeating: Cell(), count: 4),
+            count: 4
+        )
+        grid[0][0].source = .red
+        grid[3][0].source = .yellow
+        grid[3][3].source = .blue
+        grid[0][3].target = [.red, .blue]
+        grid[3][1].target = [.yellow, .blue]
+        return grid
+    }()
+
+    static let currentLevel = Level(
+        board: level4x4,
+        startPos: Position(row: 3, col: 0),
+        startHeld: .yellow
+    )
+
+    @State var board: [[Cell]] = ContentView.currentLevel.board
+    @State var playerPos: Position = ContentView.currentLevel.startPos
+    @State var held: Pigment? = ContentView.currentLevel.startHeld
 
     @State var gameState: GameState = .playing
     @State var history: [Snapshot] = []
@@ -81,9 +106,9 @@ struct ContentView: View {
             statusBanner
 
             VStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { row in
+                ForEach(board.indices, id: \.self) { row in
                     HStack(spacing: 8) {
-                        ForEach(0..<3, id: \.self) { column in
+                        ForEach(board[row].indices, id: \.self) { column in
                             CellView(
                                 cell: board[row][column],
                                 isPlayerHere: playerPos.row == row && playerPos.col == column
@@ -141,6 +166,8 @@ struct ContentView: View {
         let colDelta = abs(pos.col - playerPos.col)
         guard (rowDelta == 1 && colDelta == 0) || (rowDelta == 0 && colDelta == 1) else { return }
 
+        guard board[pos.row][pos.col].pigments.count < 3 else { return }
+
         history.append(Snapshot(board: board, playerPos: playerPos, held: held))
 
         playerPos = pos
@@ -158,7 +185,7 @@ struct ContentView: View {
     func evaluateGameState() {
         let cells = board.flatMap { $0 }
 
-        if cells.contains(where: { $0.pigments.count == 3 }) {
+        if cells.contains(where: { $0.target != nil && $0.pigments.count == 3 }) {
             gameState = .failed
             return
         }
@@ -182,9 +209,9 @@ struct ContentView: View {
     }
 
     func reset() {
-        board = ContentView.initialBoard
-        playerPos = ContentView.initialPlayerPos
-        held = ContentView.initialHeld
+        board = ContentView.currentLevel.board
+        playerPos = ContentView.currentLevel.startPos
+        held = ContentView.currentLevel.startHeld
         history = []
         moveCount = 0
         gameState = .playing
@@ -195,8 +222,12 @@ struct CellView: View {
     let cell: Cell
     let isPlayerHere: Bool
 
+    var isWall: Bool {
+        cell.target == nil && cell.pigments.count == 3
+    }
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 12)
+        RoundedRectangle(cornerRadius: isWall ? 4 : 12)
             .fill(mixedColor(for: cell.pigments))
             .frame(width: 80, height: 80)
             .overlay {
@@ -213,8 +244,15 @@ struct CellView: View {
                 }
             }
             .overlay {
+                if isWall {
+                    RoundedRectangle(cornerRadius: 2)
+                        .inset(by: 8)
+                        .strokeBorder(Color(white: 0.4), lineWidth: 3)
+                }
+            }
+            .overlay {
                 if isPlayerHere {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: isWall ? 4 : 12)
                         .strokeBorder(Color.white, lineWidth: 4)
                 }
             }
