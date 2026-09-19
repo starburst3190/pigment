@@ -8,6 +8,21 @@
 import SwiftUI
 import UIKit
 
+extension Font {
+    /// Nanum Brush Script (OFL) — Latin-only brush font; CJK glyphs fall back to the system font automatically.
+    static func brush(_ size: CGFloat) -> Font {
+        .custom("NanumBrush", size: size)
+    }
+}
+
+/// A substring styled in the brush font, meant to be interpolated into a `Text("...")` literal
+/// so it renders inline with differently-sized surrounding text without using the deprecated `Text.+`.
+func brushRun(_ text: String, size: CGFloat) -> AttributedString {
+    var run = AttributedString(text)
+    run.font = .brush(size)
+    return run
+}
+
 enum Pigment {
     case red, yellow, blue
 }
@@ -233,7 +248,7 @@ struct ContentView: View {
                 VStack(spacing: 4) {
                     if section == .tutorial {
                         Text("\(currentLevel.category.rawValue) · \(currentLevel.name)").font(.title2).bold()
-                        Text("第 \(levelIndex + 1) 關")
+                        Text("第 \(brushRun("\(levelIndex + 1)", size: 28)) 關")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else {
@@ -269,6 +284,7 @@ struct ContentView: View {
                     Button("Undo") {
                         undo()
                     }
+                    .font(.brush(28))
                     .disabled(history.isEmpty)
                 }
 
@@ -293,9 +309,9 @@ struct ContentView: View {
                 Text("調色失敗")
             case .playing:
                 if currentLevel.category == .formal {
-                    Text("\(moveCount) 步")
+                    Text("\(brushRun("\(moveCount)", size: 34)) 步")
                 } else {
-                    Text("\(moveCount) 步（最佳 \(currentLevel.par)）")
+                    Text("\(brushRun("\(moveCount)", size: 34)) 步（最佳 \(brushRun("\(currentLevel.par)", size: 34))）")
                 }
             }
         }
@@ -324,7 +340,8 @@ struct ContentView: View {
 
             VStack(spacing: 20) {
                 Text("完成").font(.title).bold()
-                Text("\(moveCount) 步完成").font(.headline)
+                Text("\(brushRun("\(moveCount)", size: 40)) 步完成")
+                    .font(.headline)
                 crownRating
 
                 BoardPreview(board: board, cellSize: 44)
@@ -575,8 +592,8 @@ struct LevelSelectView: View {
                             BoardPreview(board: level.board)
                             Text(level.name).font(.headline)
                             let best = bestMoves[progressKey(for: level)]
-                            HStack(spacing: 4) {
-                                Text(best != nil ? "\(best!) 步" : "- 步")
+                            VStack(spacing: 4) {
+                                Text("\(brushRun(best != nil ? "\(best!)" : "-", size: 24)) 步")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 CrownRating(earnedCount: best.map { $0 <= level.par ? 2 : 1 } ?? 0)
