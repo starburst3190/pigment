@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum Pigment {
     case red, yellow, blue
@@ -124,12 +125,38 @@ struct ContentView: View {
     @State var history: [Snapshot] = []
     @State var moveCount: Int = 0
 
+    @State var showingInfo = false
+    @State var showingSettings = false
+    @AppStorage("isSoundEnabled") var isSoundEnabled: Bool = true
+    @AppStorage("isHapticsEnabled") var isHapticsEnabled: Bool = true
+
     var currentLevel: Level {
         ContentView.levels[levelIndex]
     }
 
     var body: some View {
         VStack(spacing: 24) {
+            HStack {
+                Spacer()
+                Button {
+                    showingInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+            }
+            .font(.title2)
+            .sheet(isPresented: $showingInfo) {
+                MixingInfoView()
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView(isSoundEnabled: $isSoundEnabled, isHapticsEnabled: $isHapticsEnabled)
+            }
+
             VStack(spacing: 4) {
                 Text("\(currentLevel.category.rawValue) · \(currentLevel.name)").font(.title2).bold()
                 Text("第 \(levelIndex + 1) 關")
@@ -240,6 +267,10 @@ struct ContentView: View {
 
         guard board[pos.row][pos.col].pigments.count < 3 else { return }
 
+        if isHapticsEnabled {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
         history.append(Snapshot(board: board, playerPos: playerPos, held: held))
 
         playerPos = pos
@@ -338,6 +369,80 @@ struct CellView: View {
                         .strokeBorder(Color.white, lineWidth: 4)
                 }
             }
+    }
+}
+
+struct MixingInfoView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Text("混色規則").font(.title2).bold()
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+            }
+
+            mixRow(pigments: [.red, .yellow], resultName: "橙", resultColor: .orange)
+            mixRow(pigments: [.yellow, .blue], resultName: "綠", resultColor: .green)
+            mixRow(pigments: [.red, .blue], resultName: "紫", resultColor: .purple)
+            mixRow(pigments: [.red, .yellow, .blue], resultName: "黑（無法通行）", resultColor: .black)
+        }
+        .padding()
+        .presentationDetents([.height(280)])
+    }
+
+    func mixRow(pigments: [Pigment], resultName: String, resultColor: Color) -> some View {
+        HStack(spacing: 8) {
+            ForEach(pigments.indices, id: \.self) { index in
+                Circle().fill(pigmentColor(pigments[index])).frame(width: 24, height: 24)
+                if index < pigments.count - 1 {
+                    Text("+")
+                }
+            }
+            Text("=")
+            Circle().fill(resultColor).frame(width: 24, height: 24)
+            Text(resultName)
+        }
+    }
+}
+
+struct SettingsView: View {
+    @Binding var isSoundEnabled: Bool
+    @Binding var isHapticsEnabled: Bool
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack {
+                Text("設定").font(.title2).bold()
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+            }
+            Toggle("背景音樂", isOn: $isSoundEnabled)
+            Toggle("震動", isOn: $isHapticsEnabled)
+        }
+        .padding()
+        .presentationDetents([.height(220)])
     }
 }
 
