@@ -7,6 +7,39 @@
 
 import SwiftUI
 import UIKit
+import AVFoundation
+
+final class MusicPlayer {
+    private var player: AVAudioPlayer?
+    private let playerQueue = DispatchQueue(label: "com.pigment.musicplayer")
+
+    func start(volume: Double) {
+        playerQueue.async { [weak self] in
+            guard let self = self else { return }
+            if self.player == nil {
+                guard let url = Bundle.main.url(forResource: "Watercolor_Drift", withExtension: "mp3") else { return }
+                self.player = try? AVAudioPlayer(contentsOf: url)
+                self.player?.numberOfLoops = -1
+            }
+            self.player?.volume = Float(volume)
+            if self.player?.isPlaying == false {
+                self.player?.play()
+            }
+        }
+    }
+
+    func stop() {
+        playerQueue.async { [weak self] in
+            self?.player?.stop()
+        }
+    }
+
+    func updateVolume(_ volume: Double) {
+        playerQueue.async { [weak self] in
+            self?.player?.volume = Float(volume)
+        }
+    }
+}
 
 extension Font {
     /// Nanum Brush Script (OFL) — Latin-only brush font; CJK glyphs fall back to the system font automatically.
@@ -173,8 +206,10 @@ struct ContentView: View {
 
     @State var showingInfo = false
     @State var showingSettings = false
+    @State var musicPlayer = MusicPlayer()
     @AppStorage("isSoundEnabled") var isSoundEnabled: Bool = true
     @AppStorage("isHapticsEnabled") var isHapticsEnabled: Bool = true
+    @AppStorage("musicVolume") var musicVolume: Double = 0.5
 
     var sectionLevels: [Level] {
         section == .tutorial ? ContentView.tutorialLevels : ContentView.formalLevels
@@ -185,39 +220,65 @@ struct ContentView: View {
     }
 
     var body: some View {
-        switch screen {
-        case .playing:
-            gameScreen
-        case .levelSelect:
-            if section == .tutorial {
-                LevelSelectView(
-                    levels: ContentView.tutorialLevels,
-                    bestMoves: levelBestMoves,
-                    crossLinkLabel: "跳過教學",
-                    crossLinkIcon: "forward.fill",
-                    onSelect: { index in
-                        loadLevel(index, from: ContentView.tutorialLevels)
-                        screen = .playing
-                    },
-                    onCrossLink: {
-                        section = .formal
-                    }
-                )
-            } else {
-                LevelSelectView(
-                    levels: ContentView.formalLevels,
-                    bestMoves: levelBestMoves,
-                    crossLinkLabel: "教學關卡",
-                    crossLinkIcon: "graduationcap",
-                    onSelect: { index in
-                        loadLevel(index, from: ContentView.formalLevels)
-                        screen = .playing
-                    },
-                    onCrossLink: {
-                        section = .tutorial
-                    }
-                )
+        Group {
+            switch screen {
+            case .playing:
+                gameScreen
+            case .levelSelect:
+                if section == .tutorial {
+                    LevelSelectView(
+                        levels: ContentView.tutorialLevels,
+                        bestMoves: levelBestMoves,
+                        crossLinkLabel: "跳過教學",
+                        crossLinkIcon: "forward.fill",
+                        onSelect: { index in
+                            loadLevel(index, from: ContentView.tutorialLevels)
+                            screen = .playing
+                        },
+                        onCrossLink: {
+                            section = .formal
+                        },
+                        onSettings: {
+                            showingSettings = true
+                        }
+                    )
+                } else {
+                    LevelSelectView(
+                        levels: ContentView.formalLevels,
+                        bestMoves: levelBestMoves,
+                        crossLinkLabel: "教學關卡",
+                        crossLinkIcon: "graduationcap",
+                        onSelect: { index in
+                            loadLevel(index, from: ContentView.formalLevels)
+                            screen = .playing
+                        },
+                        onCrossLink: {
+                            section = .tutorial
+                        },
+                        onSettings: {
+                            showingSettings = true
+                        }
+                    )
+                }
             }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(isSoundEnabled: $isSoundEnabled, musicVolume: $musicVolume, isHapticsEnabled: $isHapticsEnabled)
+        }
+        .onAppear {
+            if isSoundEnabled {
+                musicPlayer.start(volume: musicVolume)
+            }
+        }
+        .onChange(of: isSoundEnabled) { _, newValue in
+            if newValue {
+                musicPlayer.start(volume: musicVolume)
+            } else {
+                musicPlayer.stop()
+            }
+        }
+        .onChange(of: musicVolume) { _, newValue in
+            musicPlayer.updateVolume(newValue)
         }
     }
 
@@ -241,9 +302,7 @@ struct ContentView: View {
                 .sheet(isPresented: $showingInfo) {
                     MixingInfoView()
                 }
-                .sheet(isPresented: $showingSettings) {
-                    SettingsView(isSoundEnabled: $isSoundEnabled, isHapticsEnabled: $isHapticsEnabled)
-                }
+
 
                 VStack(spacing: 4) {
                     if section == .tutorial {
@@ -575,10 +634,21 @@ struct LevelSelectView: View {
     let crossLinkIcon: String
     let onSelect: (Int) -> Void
     let onCrossLink: () -> Void
+    var onSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
+
+            HStack {
+                Spacer()
+                Button {
+                    onSettings()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .font(.title2)
+            }
 
             Text("選擇關卡").font(.title).bold()
 
@@ -665,6 +735,7 @@ struct MixingInfoView: View {
 
 struct SettingsView: View {
     @Binding var isSoundEnabled: Bool
+    @Binding var musicVolume: Double
     @Binding var isHapticsEnabled: Bool
 
     @Environment(\.dismiss) private var dismiss
@@ -685,11 +756,20 @@ struct SettingsView: View {
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
             }
-            Toggle("背景音樂", isOn: $isSoundEnabled)
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("背景音樂", isOn: $isSoundEnabled)
+                HStack(spacing: 8) {
+                    Image(systemName: "speaker.fill")
+                    Slider(value: $musicVolume, in: 0...1)
+                    Image(systemName: "speaker.wave.3.fill")
+                }
+                .disabled(!isSoundEnabled)
+                .foregroundStyle(isSoundEnabled ? .primary : .secondary)
+            }
             Toggle("震動", isOn: $isHapticsEnabled)
         }
         .padding()
-        .presentationDetents([.height(220)])
+        .presentationDetents([.height(280)])
     }
 }
 
@@ -704,6 +784,7 @@ struct SettingsView: View {
         crossLinkLabel: "教學關卡",
         crossLinkIcon: "graduationcap",
         onSelect: { _ in },
-        onCrossLink: { }
+        onCrossLink: { },
+        onSettings: { }
     )
 }
