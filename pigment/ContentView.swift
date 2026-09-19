@@ -311,9 +311,12 @@ struct CellView: View {
             .frame(width: 80, height: 80)
             .overlay {
                 if let source = cell.source {
-                    Circle()
-                        .fill(pigmentColor(source))
-                        .frame(width: 20, height: 20)
+                    Image("ink-stain-2")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(pigmentColor(source))
+                        .frame(width: 52, height: 52)
                 }
             }
             .overlay {
