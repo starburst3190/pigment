@@ -528,7 +528,7 @@ struct CellView: View {
             .overlay {
                 if isPlayerHere {
                     RoundedRectangle(cornerRadius: isWall ? 4 : 12)
-                        .strokeBorder(Color.white, lineWidth: 4)
+                        .strokeBorder(Color(white: 0.5), lineWidth: 4)
                 }
             }
     }
