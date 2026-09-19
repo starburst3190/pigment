@@ -102,8 +102,14 @@ struct ContentView: View {
               start: Position(row: 3, col: 0), par: 16),
     ]
 
-    // 正式關卡，待設計
-    static let formalLevels: [Level] = []
+    static let formalLevels: [Level] = [
+        Level(name: "交織", category: .formal, rows: ["....", "..pY", "..oB", "R.g."],
+              start: Position(row: 3, col: 0), par: 22),
+        Level(name: "包圍", category: .formal, rows: ["...B", "o...", "Rg..", "p..Y"],
+              start: Position(row: 2, col: 0), par: 21),
+        Level(name: "偽軟", category: .formal, rows: ["...B", ".rg.", ".bo.", "R..Y"],
+              start: Position(row: 3, col: 0), par: 27)
+    ]
 
     static let levels: [Level] = tutorialLevels + formalLevels
 
