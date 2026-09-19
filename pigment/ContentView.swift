@@ -32,8 +32,14 @@ struct Snapshot {
     var held: Pigment?
 }
 
+enum LevelCategory: String {
+    case tutorial = "教學"
+    case formal = "正式關卡"
+}
+
 struct Level {
     let name: String
+    let category: LevelCategory
     let rows: [String]
     let start: Position
     let par: Int
@@ -87,12 +93,19 @@ func mixedColor(for pigments: Set<Pigment>) -> Color {
 }
 
 struct ContentView: View {
-    static let levels: [Level] = [
-        Level(name: "沾色", rows: ["R.o", "...", "Y.."],
-              start: Position(row: 2, col: 0), par: 9),
-        Level(name: "汙染", rows: ["R..p", "....", "....", "Yg.B"],
+    static let tutorialLevels: [Level] = [
+        Level(name: "移動", category: .tutorial, rows: ["R..r"],
+              start: Position(row: 0, col: 0), par: 3),
+        Level(name: "沾色", category: .tutorial, rows: ["R..o", "....", "....", "Y..."],
+              start: Position(row: 3, col: 0), par: 12),
+        Level(name: "汙染", category: .tutorial, rows: ["R..p", "....", "....", "Yg.B"],
               start: Position(row: 3, col: 0), par: 16),
     ]
+
+    // 正式關卡，待設計
+    static let formalLevels: [Level] = []
+
+    static let levels: [Level] = tutorialLevels + formalLevels
 
     @State var levelIndex: Int = 0
     @State var board: [[Cell]] = ContentView.levels[0].board
@@ -112,7 +125,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 24) {
             VStack(spacing: 4) {
-                Text(currentLevel.name).font(.title2).bold()
+                Text("\(currentLevel.category.rawValue) · \(currentLevel.name)").font(.title2).bold()
                 Text("第 \(levelIndex + 1) 關")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
