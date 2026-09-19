@@ -188,6 +188,7 @@ struct ContentView: View {
             switch gameState {
             case .won:
                 Text("完成")
+                crownRating
                 if levelIndex + 1 < ContentView.levels.count {
                     Button("下一關") {
                         loadLevel(levelIndex + 1)
@@ -198,10 +199,25 @@ struct ContentView: View {
             case .failed:
                 Text("調色失敗")
             case .playing:
-                Text("\(moveCount) 步（最佳 \(currentLevel.par)）")
+                if currentLevel.category == .formal {
+                    Text("\(moveCount) 步")
+                } else {
+                    Text("\(moveCount) 步（最佳 \(currentLevel.par)）")
+                }
             }
         }
         .font(.headline)
+    }
+
+    var crownRating: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "crown.fill")
+                .foregroundStyle(.yellow)
+            if moveCount <= currentLevel.par {
+                Image(systemName: "crown.fill")
+                    .foregroundStyle(.yellow)
+            }
+        }
     }
 
     var heldIndicator: some View {
