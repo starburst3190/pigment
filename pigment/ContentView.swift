@@ -207,95 +207,88 @@ struct ContentView: View {
     }
 
     var gameScreen: some View {
-        VStack(spacing: 24) {
-            HStack {
-                Spacer()
-                Button {
-                    showingInfo = true
-                } label: {
-                    Image(systemName: "info.circle")
+        ZStack {
+            VStack(spacing: 24) {
+                HStack {
+                    Spacer()
+                    Button {
+                        showingInfo = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
                 }
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
+                .font(.title2)
+                .sheet(isPresented: $showingInfo) {
+                    MixingInfoView()
                 }
-            }
-            .font(.title2)
-            .sheet(isPresented: $showingInfo) {
-                MixingInfoView()
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView(isSoundEnabled: $isSoundEnabled, isHapticsEnabled: $isHapticsEnabled)
-            }
-
-            VStack(spacing: 4) {
-                if section == .tutorial {
-                    Text("\(currentLevel.category.rawValue) · \(currentLevel.name)").font(.title2).bold()
-                    Text("第 \(levelIndex + 1) 關")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(currentLevel.name).font(.title2).bold()
+                .sheet(isPresented: $showingSettings) {
+                    SettingsView(isSoundEnabled: $isSoundEnabled, isHapticsEnabled: $isHapticsEnabled)
                 }
-            }
 
-            statusBanner
+                VStack(spacing: 4) {
+                    if section == .tutorial {
+                        Text("\(currentLevel.category.rawValue) · \(currentLevel.name)").font(.title2).bold()
+                        Text("第 \(levelIndex + 1) 關")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(currentLevel.name).font(.title2).bold()
+                    }
+                }
 
-            VStack(spacing: 8) {
-                ForEach(board.indices, id: \.self) { row in
-                    HStack(spacing: 8) {
-                        ForEach(board[row].indices, id: \.self) { column in
-                            CellView(
-                                cell: board[row][column],
-                                isPlayerHere: playerPos.row == row && playerPos.col == column
-                            )
-                            .onTapGesture {
-                                attemptMove(to: Position(row: row, col: column))
+                statusBanner
+
+                VStack(spacing: 8) {
+                    ForEach(board.indices, id: \.self) { row in
+                        HStack(spacing: 8) {
+                            ForEach(board[row].indices, id: \.self) { column in
+                                CellView(
+                                    cell: board[row][column],
+                                    isPlayerHere: playerPos.row == row && playerPos.col == column
+                                )
+                                .onTapGesture {
+                                    attemptMove(to: Position(row: row, col: column))
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            heldIndicator
+                heldIndicator
 
-            HStack(spacing: 16) {
-                Button("重設") {
-                    reset()
+                HStack(spacing: 16) {
+                    Button("重設") {
+                        reset()
+                    }
+
+                    Button("Undo") {
+                        undo()
+                    }
+                    .disabled(history.isEmpty)
                 }
 
-                Button("Undo") {
-                    undo()
+                Button("選關") {
+                    screen = .levelSelect
                 }
-                .disabled(history.isEmpty)
             }
+            .padding()
 
-            Button("選關") {
-                screen = .levelSelect
+            if gameState == .won {
+                resultOverlay
             }
         }
-        .padding()
     }
 
     var statusBanner: some View {
         HStack {
             switch gameState {
             case .won:
-                Text("完成")
-                crownRating
-                if levelIndex + 1 < sectionLevels.count {
-                    Button("下一關") {
-                        loadLevel(levelIndex + 1)
-                    }
-                } else if section == .tutorial {
-                    Button("進入關卡選單") {
-                        section = .formal
-                        screen = .levelSelect
-                    }
-                } else {
-                    Text("全部完成")
-                }
+                EmptyView()
             case .failed:
                 Text("調色失敗")
             case .playing:
@@ -307,6 +300,65 @@ struct ContentView: View {
             }
         }
         .font(.headline)
+    }
+
+    var canAdvanceToNextLevel: Bool {
+        levelIndex + 1 < sectionLevels.count || section == .tutorial
+    }
+
+    func goToNextLevel() {
+        if levelIndex + 1 < sectionLevels.count {
+            loadLevel(levelIndex + 1)
+        } else if section == .tutorial {
+            section = .formal
+            screen = .levelSelect
+        }
+    }
+
+    var resultOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.88)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {}
+
+            VStack(spacing: 20) {
+                Text("完成").font(.title).bold()
+                Text("\(moveCount) 步完成").font(.headline)
+                crownRating
+
+                BoardPreview(board: board, cellSize: 44)
+
+                VStack(spacing: 12) {
+                    Button {
+                        reset()
+                    } label: {
+                        Text("重新遊玩").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        goToNextLevel()
+                    } label: {
+                        Text("下一關").frame(maxWidth: .infinity)
+                    }
+                    .disabled(!canAdvanceToNextLevel)
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        screen = .levelSelect
+                    } label: {
+                        Text("選關").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .controlSize(.large)
+                .frame(maxWidth: .infinity)
+            }
+            .padding(24)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
+            .padding(32)
+        }
     }
 
     var crownRating: some View {
