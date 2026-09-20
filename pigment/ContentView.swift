@@ -627,6 +627,30 @@ struct BoardPreview: View {
     }
 }
 
+/// 標題插圖。圖片放在 repo 上用 HTTPS 取，換圖不用重新送出 App。
+/// 沒有網路時整塊不顯示，不影響選關與遊玩。
+struct RemoteBanner: View {
+    private static let url = URL(string: "https://raw.githubusercontent.com/starburst3190/pigment/main/docs/banner.png")
+
+    var body: some View {
+        AsyncImage(url: Self.url, transaction: Transaction(animation: .easeIn(duration: 0.25))) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFit()
+            case .empty:
+                ProgressView()
+            case .failure:
+                Color.clear
+            @unknown default:
+                Color.clear
+            }
+        }
+        .frame(height: 120)
+    }
+}
+
 struct LevelSelectView: View {
     let levels: [Level]
     let bestMoves: [String: Int]
@@ -649,6 +673,8 @@ struct LevelSelectView: View {
                 }
                 .font(.title2)
             }
+
+            RemoteBanner()
 
             Text("選擇關卡").font(.title).bold()
 
