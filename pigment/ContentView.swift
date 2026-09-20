@@ -178,7 +178,7 @@ struct ContentView: View {
 
     static let formalLevels: [Level] = [
         Level(name: "交織", category: .formal, rows: ["....", "..pY", "..oB", "R.g."],
-              start: Position(row: 3, col: 0), par: 22),
+              start: Position(row: 3, col: 0), par: 20),
         Level(name: "包圍", category: .formal, rows: ["...B", "o...", "Rg..", "p..Y"],
               start: Position(row: 2, col: 0), par: 21),
         Level(name: "偽軟", category: .formal, rows: ["...B", ".rg.", ".bo.", "R..Y"],
