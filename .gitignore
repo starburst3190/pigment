@@ -1,0 +1,10 @@
+# 作業繳交用的素材，不屬於 App 本體
+conversation_*.txt
+medium-article.md
+screenshots/
+*.mov
+stain_demo.*
+
+# macOS / Xcode
+.DS_Store
+xcuserdata/
